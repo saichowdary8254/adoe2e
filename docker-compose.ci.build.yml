@@ -1,7 +1,8 @@
+# docker-compose.ci.build.yml
 services:
   ci-build:
     image: sriramdasbalaji/aspnetcore-build:1.0-2.0
+    working_dir: /src
     volumes:
       - .:/src
-    working_dir: /src
     command: ["/bin/bash", "-lc", "dotnet restore ./MHC_ASPNetCore.sln && dotnet publish ./MHC_ASPNetCore.sln -c Release -o ./obj/Docker/publish"]
