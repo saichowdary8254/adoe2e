@@ -112,4 +112,3 @@ jobs:
       #   run: |
       #     DEPLOY_NAME=$(kubectl get deploy -n "${{ env.KUBE_NAMESPACE }}" -o jsonpath='{.items[0].metadata.name}')
       #     [ -n "$DEPLOY_NAME" ] && kubectl rollout status deploy/"$DEPLOY_NAME" -n "${{ env.KUBE_NAMESPACE }}" --timeout=300s || true
-``
