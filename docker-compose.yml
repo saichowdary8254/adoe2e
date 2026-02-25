@@ -1,7 +1,7 @@
 # version: '2'
 services:
   myhealth.web:
-    image: myhealth.web
+    image: nextopsacrt20.azurecr.io/myhealth.web:${TAG:-latest}
     build:
       context: ./src/MyHealth.Web
       dockerfile: Dockerfile
