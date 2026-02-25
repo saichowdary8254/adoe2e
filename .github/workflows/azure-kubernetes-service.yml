@@ -15,7 +15,7 @@ env:
 
   # ===== Image build settings =====
   IMAGE_NAME: "your"                                # repository name in ACR
-  DOCKERFILE_PATH: "./docker-compose.ci.build.yml"                     # e.g., docker/app/Dockerfile
+  DOCKERFILE_PATH: "./docker-compose.yml"                     # e.g., docker/app/Dockerfile
   BUILD_CONTEXT: "."                                # e.g., ./src
 
 jobs:
