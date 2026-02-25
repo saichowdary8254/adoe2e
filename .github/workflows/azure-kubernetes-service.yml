@@ -6,7 +6,7 @@
 #   - https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough-portal
 #   - https://docs.microsoft.com/en-us/azure/container-registry/container-registry-get-started-portal
 #   - https://learn.microsoft.com/en-us/azure/aks/cluster-container-registry-integration?tabs=azure-cli#configure-acr-integration-for-existing-aks-clusters
-#   - https://github.com/Azure/aks-create-action
+#   - https://github.com/Azure/aks-create-action 
 #
 # To configure this workflow:
 #
