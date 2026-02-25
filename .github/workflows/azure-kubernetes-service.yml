@@ -1,4 +1,4 @@
-name: Build, Push to ACR, and Deploy to AKS
+name: Build, Push to ACR, and Deploy to AKS (no ACR Tasks)
 
 on:
   push:
@@ -6,21 +6,21 @@ on:
   workflow_dispatch:
 
 env:
-  # ====== Azure/AKS settings ======
-  AZURE_CONTAINER_REGISTRY: "nextopsacrt20"         # ACR name only
+  # ===== Azure/AKS settings =====
+  AZURE_CONTAINER_REGISTRY: "nextopsacrt20"        # ACR name only (no .azurecr.io)
   RESOURCE_GROUP: "AKSRG"
   CLUSTER_NAME: "nextopsakst20"
-  KUBE_NAMESPACE: "default"                          # change if needed
+  KUBE_NAMESPACE: "default"                         # change if you deploy elsewhere
   DEPLOYMENT_MANIFEST_PATH: "./mhc-aks.yaml"
 
-  # ====== Image settings ======
-  IMAGE_NAME: "your"                                 # ACR repository name (e.g., 'web', 'api', etc.)
-  DOCKERFILE_PATH: "./docker-compose.ci.build.yml"                      # e.g., docker/app/Dockerfile
-  BUILD_CONTEXT: "."                                 # e.g., ./src
+  # ===== Image build settings =====
+  IMAGE_NAME: "your"                                # repository name in ACR
+  DOCKERFILE_PATH: "./docker-compose.ci.build.yml"                     # e.g., docker/app/Dockerfile
+  BUILD_CONTEXT: "."                                # e.g., ./src
 
 jobs:
   build_push:
-    name: Build & Push to ACR
+    name: Build locally and push to ACR
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -36,22 +36,27 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Build on ACR and push automatically (two tags: SHA and latest)
-      - name: ACR build and push (SHA + latest)
+      - name: Docker login to ACR
         run: |
-          # Tag 1: commit SHA
-          az acr build \
-            --registry ${{ env.AZURE_CONTAINER_REGISTRY }} \
-            --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            --file ${{ env.DOCKERFILE_PATH }} \
+          az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
+
+      - name: Build image (tag = commit SHA)
+        run: |
+          docker build \
+            -f ${{ env.DOCKERFILE_PATH }} \
+            -t ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             ${{ env.BUILD_CONTEXT }}
 
-          # Tag 2: latest (optional)
-          az acr build \
-            --registry ${{ env.AZURE_CONTAINER_REGISTRY }} \
-            --image ${{ env.IMAGE_NAME }}:latest \
-            --file ${{ env.DOCKERFILE_PATH }} \
-            ${{ env.BUILD_CONTEXT }}
+      - name: Tag also as latest
+        run: |
+          docker tag \
+            ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+
+      - name: Push images
+        run: |
+          docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
 
   deploy:
     name: Deploy to AKS
@@ -89,9 +94,8 @@ jobs:
           kubectl get ns "${{ env.KUBE_NAMESPACE }}" >/dev/null 2>&1 || \
           kubectl create ns "${{ env.KUBE_NAMESPACE }}"
 
-      # If your manifest DOES NOT already contain the image reference or you want to override it:
-      # Use Azure/k8s-deploy with the fully-qualified image, otherwise use plain kubectl apply below.
-      - name: Deploy manifests (override image tag to commit SHA)
+      # Option A: override image in manifest to the new SHA tag
+      - name: Deploy manifests (override image)
         uses: Azure/k8s-deploy@v4
         with:
           action: deploy
@@ -100,15 +104,12 @@ jobs:
           images: |
             ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-      # Alternatively, if your manifest ALREADY has the image you want, comment the step above
-      # and uncomment the following two steps:
-      # - name: Apply manifests as-is
-      #   run: |
-      #     kubectl apply -n "${{ env.KUBE_NAMESPACE }}" -f "${{ env.DEPLOYMENT_MANIFEST_PATH }}"
-      #
-      # - name: Wait for rollout (Deployment)
+      # Option B: if your manifest already references the desired image:tag,
+      # comment out the step above and use:
+      # - name: Apply manifest as-is
+      #   run: kubectl apply -n "${{ env.KUBE_NAMESPACE }}" -f "${{ env.DEPLOYMENT_MANIFEST_PATH }}"
+      # - name: Wait for rollout
       #   run: |
       #     DEPLOY_NAME=$(kubectl get deploy -n "${{ env.KUBE_NAMESPACE }}" -o jsonpath='{.items[0].metadata.name}')
-      #     if [ -n "$DEPLOY_NAME" ]; then
-      #       kubectl rollout status deploy/"$DEPLOY_NAME" -n "${{ env.KUBE_NAMESPACE }}" --timeout=300s
-      #     fi
+      #     [ -n "$DEPLOY_NAME" ] && kubectl rollout status deploy/"$DEPLOY_NAME" -n "${{ env.KUBE_NAMESPACE }}" --timeout=300s || true
+``
