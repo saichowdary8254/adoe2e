@@ -7,7 +7,7 @@ on:
 
 env:
   # ===== Azure/AKS settings =====
-  AZURE_CONTAINER_REGISTRY: "nextopsacrt20"        # ACR name only (no .azurecr.io) 
+  AZURE_CONTAINER_REGISTRY: "nextopsacrt20"        # ACR name only (no .azurecr.io)  
   RESOURCE_GROUP: "AKSRG"
   CLUSTER_NAME: "nextopsakst20"
   KUBE_NAMESPACE: "default"                         # change if you deploy elsewhere
